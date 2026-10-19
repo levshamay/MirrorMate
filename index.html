@@ -1,0 +1,1183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>MirrorMate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,500;12..96,700&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* Layout concept: a black mirror surface (black = see-through behind two-way glass).
+   Info hugs the edges, the centre stays clear for your reflection. */
+:root{
+  --glass:#000000;          /* pure black so the mirror stays reflective */
+  --ink:#eef6f4;            /* primary text */
+  --mist:#8fa5a1;           /* secondary text, cool grey biased to mint */
+  --hair:#1d2826;           /* hairlines, quiet surfaces */
+  --panel:#0b1211;          /* settings panels */
+  --mint:#7fe3d0;           /* accent: fresh mint */
+  --sun:#ffd166;            /* kids mode accent */
+  --germ:#8be36b;
+  --warn:#ff8a7a;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body:"Manrope", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--glass);color:var(--ink);font-family:var(--body);font-size:16px;overflow:hidden;-webkit-font-smoothing:antialiased;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.tnum{font-variant-numeric:tabular-nums}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:clamp(16px,3.2vw,40px)}
+
+/* ---------- Idle ---------- */
+#idle .top{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap}
+.clock{font-family:var(--display);font-weight:300;font-size:clamp(64px,11vw,148px);line-height:.9;letter-spacing:-.03em}
+.date{color:var(--mist);font-size:clamp(16px,1.8vw,22px);margin-top:10px}
+.weather{text-align:right}
+.weather .temp{font-family:var(--display);font-weight:300;font-size:clamp(40px,6vw,76px);line-height:1}
+.weather .desc{color:var(--mist);margin-top:6px}
+#idle .middle{flex:1}
+#idle .bottom{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center}
+.prompt{font-family:var(--display);font-weight:500;font-size:clamp(22px,3vw,34px);text-wrap:balance}
+.prompt small{display:block;font-family:var(--body);font-weight:500;font-size:15px;color:var(--mist);margin-top:8px}
+.people{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.person{display:flex;align-items:center;gap:10px;padding:10px 18px 10px 10px;border:1px solid var(--hair);border-radius:999px;background:transparent;transition:border-color .2s,transform .2s}
+.person:hover{border-color:var(--mint);transform:translateY(-2px)}
+.avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:700;color:#000;background:var(--mint);flex:none}
+.avatar.kid{background:var(--sun)}
+.person .meta{text-align:left;line-height:1.15}
+.person .meta b{display:block;font-weight:600}
+.person .meta span{font-size:12px;color:var(--mist)}
+.status{font-size:13px;color:var(--mist);display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mist);margin-right:6px;vertical-align:1px}
+.dot.on{background:var(--mint);box-shadow:0 0 10px var(--mint)}
+.corner{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(env(safe-area-inset-right,0px) + 14px);display:flex;gap:8px;z-index:5}
+.iconbtn{width:42px;height:42px;border-radius:50%;border:1px solid var(--hair);background:transparent;display:grid;place-items:center;color:var(--mist)}
+.iconbtn:hover{color:var(--ink);border-color:var(--mist)}
+#idle .top{padding-right:110px}
+
+/* greeting banner */
+.greet{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);text-align:center;width:min(92vw,620px)}
+.greet h2{font-family:var(--display);font-weight:500;font-size:clamp(34px,5vw,60px);margin:0 0 8px;letter-spacing:-.02em;text-wrap:balance}
+.greet p{color:var(--mist);margin:0 0 20px;font-size:18px}
+.row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn{padding:14px 26px;border-radius:999px;border:1px solid var(--hair);background:transparent;font-weight:600;font-size:16px}
+.btn.primary{background:var(--mint);color:#00110e;border-color:var(--mint)}
+.btn.kid{background:var(--sun);border-color:var(--sun);color:#1a1200}
+.btn:hover{filter:brightness(1.08)}
+
+/* ---------- Session ---------- */
+#session{display:grid;grid-template-columns:minmax(220px,34%) 1fr;grid-template-rows:auto 1fr auto;gap:clamp(12px,2vw,28px)}
+#session .head{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px;padding-right:104px}
+.who{display:flex;align-items:center;gap:12px}
+.who b{font-family:var(--display);font-weight:500;font-size:22px}
+.phase{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mint);border:1px solid currentColor;border-radius:999px;padding:5px 12px}
+.phase.kid{color:var(--sun)}
+.ringwrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-width:0}
+.ring{position:relative;width:min(100%,300px);aspect-ratio:1;max-width:100%}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .track{stroke:var(--hair)}
+.ring .arc{stroke:var(--mint);transition:stroke-dashoffset .5s linear}
+.ring.kid .arc{stroke:var(--sun)}
+.ring .num{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ring .num b{font-family:var(--display);font-weight:300;font-size:clamp(48px,7vw,84px);letter-spacing:-.03em;line-height:1}
+.ring .num span{display:block;font-size:13px;color:var(--mist);margin-top:6px;letter-spacing:.08em;text-transform:uppercase}
+.zone{font-family:var(--display);font-size:20px;text-align:center;min-height:28px}
+.meter{width:min(100%,260px)}
+.meter .lbl{display:flex;justify-content:space-between;font-size:12px;color:var(--mist);margin-bottom:6px}
+.meter .bar{height:6px;border-radius:3px;background:var(--hair);overflow:hidden}
+.meter .bar i{display:block;height:100%;width:0;background:var(--mint);transition:width .3s}
+.stage{min-width:0;min-height:0;position:relative;display:flex;flex-direction:column}
+
+/* adult content */
+.content{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:68ch;min-height:0}
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--mint);margin-bottom:12px}
+.content h3{font-family:var(--display);font-weight:500;font-size:clamp(26px,3.4vw,44px);line-height:1.08;margin:0 0 16px;letter-spacing:-.015em;text-wrap:balance}
+.content p{font-size:clamp(17px,1.7vw,22px);line-height:1.55;color:#d5e3e0;margin:0;overflow:auto}
+.content .src{font-size:12px;color:var(--mist);margin-top:14px}
+.seg-fade{animation:fade .6s ease}
+@keyframes fade{from{opacity:.15;transform:translateY(8px)}to{opacity:1;transform:none}}
+.segs{display:flex;gap:6px;margin-top:22px}
+.segs i{flex:1;height:3px;border-radius:2px;background:var(--hair);overflow:hidden;position:relative}
+.segs i.done{background:var(--mist)}
+.segs i.now::after{content:"";position:absolute;inset:0;background:var(--mint);transform-origin:left;transform:scaleX(var(--p,0))}
+
+/* kid game */
+.game{flex:1;display:flex;flex-direction:column;gap:12px;min-height:0}
+.hero{display:flex;align-items:center;gap:14px}
+.hero .bubble{flex:1;background:#141d1b;border:1px solid var(--hair);border-radius:18px;padding:12px 16px;font-size:clamp(16px,1.8vw,21px);font-weight:600;min-width:0}
+.scorebar{display:flex;gap:18px;align-items:center;font-family:var(--display);font-size:22px}
+.scorebar .stars{color:var(--sun);letter-spacing:2px}
+canvas#mouth{flex:1;width:100%;min-height:200px;display:block;touch-action:manipulation}
+
+#session .foot{grid-column:1/-1;display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.foot .btn{padding:10px 20px;font-size:14px}
+
+/* overlays */
+.overlay{position:absolute;inset:0;background:rgba(0,0,0,.94);display:grid;place-items:center;z-index:20;padding:16px}
+.card{width:min(560px,100%);text-align:center}
+.card h2{font-family:var(--display);font-weight:500;font-size:clamp(30px,4.4vw,48px);margin:0 0 10px;letter-spacing:-.02em;text-wrap:balance}
+.card p{color:var(--mist);font-size:18px;margin:0 0 22px;line-height:1.5}
+.countdown{font-size:13px;color:var(--mist);margin-top:14px}
+.stats{display:flex;flex-wrap:wrap;justify-content:center;gap:16px 12px;margin:8px 0 24px}
+.stat{flex:0 1 120px;border-top:1px solid var(--hair);padding-top:10px}
+.stat b{display:block;font-family:var(--display);font-weight:500;font-size:30px}
+.stat span{font-size:12px;color:var(--mist);text-transform:uppercase;letter-spacing:.08em}
+
+/* camera preview */
+#camPreview{position:absolute;right:calc(env(safe-area-inset-right,0px) + 16px);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);width:160px;aspect-ratio:4/3;border-radius:12px;overflow:hidden;border:1px solid var(--hair);z-index:6;background:#050808}
+#camPreview video,#camPreview canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+
+/* settings */
+#settings{position:absolute;inset:0;background:var(--panel);z-index:30;display:flex;flex-direction:column;overflow:hidden}
+.sethead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px))}
+.sethead h2{font-family:var(--display);font-weight:500;margin:0;font-size:26px}
+.tabs{display:flex;gap:4px;padding:14px max(16px,env(safe-area-inset-left,0px)) 0;border-bottom:1px solid var(--hair);overflow-x:auto}
+.tab{padding:10px 14px;border:0;background:none;color:var(--mist);border-bottom:2px solid transparent;white-space:nowrap;font-weight:600}
+.tab[aria-selected="true"]{color:var(--ink);border-color:var(--mint)}
+.setbody{flex:1;overflow:auto;padding:20px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
+.setbody section{max-width:760px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field label{font-size:13px;font-weight:600;color:var(--mist)}
+.field .hint{font-size:12px;color:var(--mist);line-height:1.45}
+input[type=text],input[type=password],input[type=number],select,textarea{background:#050909;border:1px solid var(--hair);border-radius:10px;color:var(--ink);padding:11px 12px;font:inherit;width:100%}
+textarea{resize:vertical;min-height:70px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 16px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--hair)}
+.toggle div{min-width:0}
+.toggle b{display:block;font-weight:600}
+.toggle span{font-size:13px;color:var(--mist)}
+.toggle input{width:22px;height:22px;accent-color:var(--mint);flex:none}
+.plist{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.pitem{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--hair);border-radius:14px}
+.pitem .meta{flex:1;min-width:0}
+.pitem .meta b{display:block}
+.pitem .meta span{font-size:13px;color:var(--mist)}
+.chip{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--hair);color:var(--mist);white-space:nowrap}
+.chip.ok{color:var(--mint);border-color:var(--mint)}
+.editor{border:1px solid var(--hair);border-radius:16px;padding:18px;margin-bottom:20px;background:#081010}
+.editor h3{margin:0 0 14px;font-family:var(--display);font-weight:500}
+.seg{display:flex;border:1px solid var(--hair);border-radius:10px;overflow:hidden}
+.seg button{flex:1;padding:10px;border:0;background:none;color:var(--mist);font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--mint);color:#00110e}
+.hist{display:flex;flex-direction:column;gap:14px}
+.hrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hrow .name{width:120px;font-weight:600}
+.days{display:flex;gap:6px}
+.days i{width:26px;height:26px;border-radius:7px;background:#121a19;display:grid;place-items:center;font-style:normal;font-size:10px;color:var(--mist)}
+.days i.am{background:var(--mint);color:#00110e}
+.days i.half{background:#2b5a51;color:var(--ink)}
+.note{font-size:13px;color:var(--mist);line-height:1.55;border-left:2px solid var(--hair);padding-left:12px;margin:12px 0 18px}
+
+/* enroll */
+#enroll .card{width:min(520px,100%)}
+.enrollcam{position:relative;width:100%;aspect-ratio:4/3;border-radius:16px;overflow:hidden;background:#050808;margin-bottom:16px;border:1px solid var(--hair)}
+.enrollcam video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.enrollcam .ovl{position:absolute;inset:12% 26%;border:2px dashed var(--mint);border-radius:50%}
+
+.toast{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);background:#121b19;border:1px solid var(--hair);padding:12px 18px;border-radius:12px;z-index:50;max-width:min(92vw,560px);font-size:14px;text-align:center}
+
+@media (max-width:760px), (orientation:portrait){
+  #session{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto}
+  .ring{width:min(54vw,220px)}
+  .ringwrap{flex-direction:row;justify-content:center;flex-wrap:wrap}
+  .ringwrap .side{display:flex;flex-direction:column;gap:12px;align-items:center}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ============ IDLE ============ -->
+<div id="idle" class="screen">
+  <div class="top">
+    <div>
+      <div class="clock tnum" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+    </div>
+    <div class="weather" id="weather" hidden>
+      <div class="temp tnum" id="wTemp"></div>
+      <div class="desc" id="wDesc"></div>
+    </div>
+  </div>
+  <div class="middle"></div>
+  <div class="bottom">
+    <div class="prompt" id="idlePrompt">Who's brushing?<small>Tap your name, or step up to the camera.</small></div>
+    <div class="people" id="people"></div>
+    <div class="status" id="statusLine"></div>
+  </div>
+</div>
+
+<div class="greet" id="greet" hidden>
+  <h2 id="greetTitle"></h2>
+  <p id="greetSub"></p>
+  <div class="row">
+    <button class="btn primary" id="greetGo">Start now</button>
+    <button class="btn" id="greetCancel">Not me</button>
+  </div>
+  <div class="countdown tnum" id="greetCount"></div>
+</div>
+
+<!-- ============ SESSION ============ -->
+<div id="session" class="screen" hidden>
+  <div class="head">
+    <div class="who"><div class="avatar" id="sAvatar"></div><b id="sName"></b></div>
+    <div class="phase" id="sPhase">Brushing</div>
+  </div>
+  <div class="ringwrap">
+    <div class="ring" id="ring">
+      <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="54" fill="none" stroke-width="6"/><circle class="arc" id="arc" cx="60" cy="60" r="54" fill="none" stroke-width="6" stroke-linecap="round" stroke-dasharray="339.3" stroke-dashoffset="339.3"/></svg>
+      <div class="num"><div><b class="tnum" id="sTime">2:00</b><span id="sTimeLbl">left</span></div></div>
+    </div>
+    <div class="side">
+      <div class="zone" id="sZone"></div>
+      <div class="meter" id="sMeter" hidden>
+        <div class="lbl"><span>Brush movement</span><span id="sStrokes" class="tnum">0 strokes</span></div>
+        <div class="bar"><i id="sMeterBar"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="stage">
+    <div class="content" id="adultStage">
+      <div class="kicker" id="cKicker"></div>
+      <h3 id="cTitle"></h3>
+      <p id="cText"></p>
+      <div class="src" id="cSrc"></div>
+      <div class="segs" id="cSegs"></div>
+    </div>
+    <div class="game" id="kidStage" hidden>
+      <div class="hero">
+        <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"><path d="M14 10c6-6 14-2 18 0 4-2 12-6 18 0 6 7 3 18 0 26-2 6-2 20-7 22-4 2-5-12-11-12s-7 14-11 12c-5-2-5-16-7-22-3-8-6-19 0-26z" fill="#fff"/><path d="M9 22c-6 8-4 22 2 30l8-26z" fill="#ff6b6b"/><circle cx="25" cy="24" r="3.4" fill="#111"/><circle cx="39" cy="24" r="3.4" fill="#111"/><path d="M25 33q7 6 14 0" stroke="#111" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>
+        <div class="bubble" id="kBubble">Let's scrub those germs away!</div>
+      </div>
+      <div class="scorebar"><span class="tnum" id="kScore">0 pts</span><span class="stars" id="kStars"></span></div>
+      <canvas id="mouth" aria-label="Brushing game: germs on teeth"></canvas>
+    </div>
+  </div>
+  <div class="foot">
+    <button class="btn" id="bPause">Pause</button>
+    <button class="btn" id="bNext">Next story</button>
+    <button class="btn" id="bRead">Read aloud: off</button>
+    <button class="btn" id="bStop">End session</button>
+  </div>
+</div>
+
+<!-- floss offer -->
+<div class="overlay" id="offer" hidden>
+  <div class="card">
+    <h2 id="offerTitle">Two minutes done!</h2>
+    <p id="offerText">Want to floss? I'll keep you company for one more minute.</p>
+    <div class="row">
+      <button class="btn primary" id="offerYes">Yes, floss</button>
+      <button class="btn" id="offerNo">I'm done</button>
+    </div>
+    <div class="countdown tnum" id="offerCount"></div>
+  </div>
+</div>
+
+<!-- summary -->
+<div class="overlay" id="summary" hidden>
+  <div class="card">
+    <h2 id="sumTitle"></h2>
+    <p id="sumText"></p>
+    <div class="stats" id="sumStats"></div>
+    <button class="btn primary" id="sumDone">Done</button>
+  </div>
+</div>
+
+<!-- enroll face -->
+<div class="overlay" id="enroll" hidden>
+  <div class="card">
+    <h2 id="enTitle">Teach me your face</h2>
+    <p id="enText">Look at the camera. I'll take 5 quick samples. Turn your head slightly between them.</p>
+    <div class="enrollcam"><video id="enVideo" playsinline muted></video><div class="ovl"></div></div>
+    <div class="row">
+      <button class="btn primary" id="enGo">Capture</button>
+      <button class="btn" id="enCancel">Cancel</button>
+    </div>
+    <div class="countdown" id="enStatus"></div>
+  </div>
+</div>
+
+<!-- camera preview (also the shared video source) -->
+<div id="camPreview" hidden><video id="cam" playsinline muted></video><canvas id="camDraw"></canvas></div>
+
+<div class="corner">
+  <button class="iconbtn" id="bFull" title="Full screen" aria-label="Full screen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  <button class="iconbtn" id="bSettings" title="Settings" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+</div>
+
+<!-- ============ SETTINGS ============ -->
+<div id="settings" hidden>
+  <div class="sethead"><h2>MirrorMate settings</h2><button class="btn" id="setClose">Close</button></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="household" aria-selected="true">Household</button>
+    <button class="tab" role="tab" data-tab="mirror" aria-selected="false">Mirror</button>
+    <button class="tab" role="tab" data-tab="ai" aria-selected="false">AI &amp; voice</button>
+    <button class="tab" role="tab" data-tab="history" aria-selected="false">History</button>
+  </div>
+  <div class="setbody">
+    <section data-pane="household">
+      <div class="plist" id="plist"></div>
+      <div id="editorHost"></div>
+      <button class="btn primary" id="addPerson">Add a person</button>
+    </section>
+
+    <section data-pane="mirror" hidden>
+      <div class="toggle"><div><b>Use the camera</b><span>Recognizes who's brushing and tracks brush movement in kids' games. Video stays on this device.</span></div><input type="checkbox" id="optCamera"></div>
+      <div class="toggle"><div><b>Start automatically</b><span>When a known face appears, start the session after a 3-second countdown.</span></div><input type="checkbox" id="optAuto"></div>
+      <div class="toggle"><div><b>Show camera preview</b><span>Small preview in the corner, handy while setting up.</span></div><input type="checkbox" id="optPreview"></div>
+      <div class="toggle"><div><b>Keep the screen awake</b><span>Stops the tablet or laptop from sleeping while MirrorMate is open.</span></div><input type="checkbox" id="optWake"></div>
+      <div class="grid2" style="margin-top:18px">
+        <div class="field"><label for="optCity">City for weather</label><input type="text" id="optCity" placeholder="e.g. Great Neck, NY"></div>
+        <div class="field"><label for="optUnits">Temperature</label><select id="optUnits"><option value="fahrenheit">°F</option><option value="celsius">°C</option></select></div>
+      </div>
+      <p class="note">Face recognition and hand tracking run in this browser. Camera images are never uploaded. Recognition works best with even lighting and 5 samples per person.</p>
+    </section>
+
+    <section data-pane="ai" hidden>
+      <div class="field"><label for="optKey">Claude API key</label><input type="password" id="optKey" placeholder="sk-ant-…" autocomplete="off">
+        <span class="hint">Optional. Without a key, adults get built-in stories, fun facts and phrase lessons. With a key, MirrorMate writes a fresh briefing sized to each session, using live web search for news, sports and stocks. The key is stored only in this browser on this device. Get one at console.anthropic.com.</span></div>
+      <div class="field"><label for="optModel">Model</label><select id="optModel"><option value="claude-sonnet-5-5">Claude Sonnet 5.5 (balanced)</option><option value="claude-haiku-5-5">Claude Haiku 5.5 (fastest, cheapest)</option><option value="claude-opus-5-5">Claude Opus 5.5 (best)</option></select></div>
+      <div class="row" style="justify-content:flex-start;margin-bottom:20px"><button class="btn" id="testKey">Test the key</button><span id="keyStatus" class="hint" style="align-self:center"></span></div>
+      <div class="toggle"><div><b>Read content aloud</b><span>Default for new sessions. You can switch it during a session too.</span></div><input type="checkbox" id="optRead"></div>
+      <div class="toggle"><div><b>Voice commands</b><span>Say "start", "yes" to floss, "no", "next", "pause" or "stop". Needs microphone access; works best in Chrome.</span></div><input type="checkbox" id="optVoice"></div>
+      <div class="toggle"><div><b>Spoken greetings</b><span>"Good morning, Lev" when someone is recognized.</span></div><input type="checkbox" id="optGreet"></div>
+    </section>
+
+    <section data-pane="history" hidden>
+      <div class="hist" id="hist"></div>
+      <p class="note">Filled square: full session. Light square: started but ended early. Last 14 days, newest on the right.</p>
+      <button class="btn" id="clearHist">Clear history</button>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+"use strict";
+/* =========================================================
+   MirrorMate — vanity mirror prototype
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const LS_KEY = "mirrormate.v1";
+const FACE_API = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js";
+const FACE_MODELS = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/";
+const MP_BUNDLE = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/vision_bundle.mjs";
+const MP_WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm";
+const MP_HAND = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+
+/* ---------------- storage ---------------- */
+const uid = () => Math.random().toString(36).slice(2, 10);
+function defaults() {
+  return {
+    settings: { camera: false, autoStart: true, preview: false, wake: true, city: "", units: "fahrenheit",
+      lat: null, lon: null, apiKey: "", model: "claude-sonnet-5-5", readAloud: false, voice: false, greet: true },
+    profiles: [
+      { id: uid(), name: "Lev", kind: "adult", brushSec: 120, flossSec: 60, content: "briefing",
+        news: "Technology, business, world headlines", sports: "", stocks: "AAPL, NVDA, S&P 500", language: "Spanish", faces: [] },
+      { id: uid(), name: "Kid demo", kind: "kid", brushSec: 120, flossSec: 60, content: "game", faces: [] }
+    ],
+    sessions: [], cache: {}
+  };
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(LS_KEY)) || defaults(); } catch { S = defaults(); }
+S = Object.assign(defaults(), S); S.settings = Object.assign(defaults().settings, S.settings);
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { toast("Couldn't save on this device: browser storage is full or blocked."); } }
+
+/* ---------------- helpers ---------------- */
+function toast(msg, ms = 3800) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, ms); }
+const fmt = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+const initials = n => (n || "?").trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+const greetWord = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; };
+const todayKey = (d = new Date()) => d.toISOString().slice(0, 10);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("Couldn't load " + src)); document.head.appendChild(s); }); }
+
+/* ---------------- speech ---------------- */
+const TTS = {
+  voice: null,
+  init() { const pick = () => { const v = speechSynthesis.getVoices(); this.voice = v.find(x => /en-US/.test(x.lang) && /Natural|Samantha|Google US|Aria|Jenny/i.test(x.name)) || v.find(x => /^en/.test(x.lang)) || null; }; if ("speechSynthesis" in window) { pick(); speechSynthesis.onvoiceschanged = pick; } },
+  say(text, opts = {}) { if (!("speechSynthesis" in window) || !text) return; if (!opts.queue) speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); if (this.voice) u.voice = this.voice; u.rate = opts.rate || 1.02; u.pitch = opts.pitch || 1; speechSynthesis.speak(u); },
+  stop() { if ("speechSynthesis" in window) speechSynthesis.cancel(); }
+};
+TTS.init();
+
+/* ---------------- clock & weather ---------------- */
+function tick() {
+  const d = new Date();
+  $("#clock").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(/\s?[AP]M/i, "");
+  $("#date").textContent = d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+}
+setInterval(tick, 1000); tick();
+const WMO = { 0: "Clear", 1: "Mostly clear", 2: "Partly cloudy", 3: "Cloudy", 45: "Fog", 48: "Fog", 51: "Light drizzle", 53: "Drizzle", 55: "Drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain", 71: "Light snow", 73: "Snow", 75: "Heavy snow", 80: "Showers", 81: "Showers", 82: "Heavy showers", 95: "Thunderstorms", 96: "Thunderstorms", 99: "Thunderstorms" };
+async function geocode(city) {
+  const r = await fetch("https://geocoding-api.open-meteo.com/v1/search?count=1&name=" + encodeURIComponent(city.split(",")[0]));
+  const j = await r.json(); if (!j.results?.length) throw new Error("City not found");
+  return { lat: j.results[0].latitude, lon: j.results[0].longitude };
+}
+async function weather() {
+  const st = S.settings; if (!st.city) { $("#weather").hidden = true; return; }
+  try {
+    if (st.lat == null) { const g = await geocode(st.city); st.lat = g.lat; st.lon = g.lon; save(); }
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&temperature_unit=${st.units}&timezone=auto&forecast_days=1`;
+    const j = await (await fetch(u)).json();
+    $("#wTemp").textContent = Math.round(j.current.temperature_2m) + "°";
+    $("#wDesc").textContent = `${WMO[j.current.weather_code] || ""} · H ${Math.round(j.daily.temperature_2m_max[0])}° L ${Math.round(j.daily.temperature_2m_min[0])}°`;
+    $("#weather").hidden = false;
+    weather.summary = `${Math.round(j.current.temperature_2m)} degrees and ${(WMO[j.current.weather_code] || "").toLowerCase()}, high of ${Math.round(j.daily.temperature_2m_max[0])}`;
+  } catch (e) { $("#weather").hidden = true; }
+}
+weather(); setInterval(weather, 30 * 60 * 1000);
+
+/* ---------------- idle screen ---------------- */
+function renderPeople() {
+  const host = $("#people"); host.innerHTML = "";
+  S.profiles.forEach(p => {
+    const b = document.createElement("button"); b.className = "person";
+    b.innerHTML = `<div class="avatar ${p.kind === "kid" ? "kid" : ""}">${esc(initials(p.name))}</div><div class="meta"><b>${esc(p.name)}</b><span>${p.kind === "kid" ? "Brushing game" : contentLabel(p.content)} · ${fmt(p.brushSec)}</span></div>`;
+    b.onclick = () => startSession(p);
+    host.appendChild(b);
+  });
+  const g = document.createElement("button"); g.className = "person";
+  g.innerHTML = `<div class="avatar" style="background:var(--mist)">G</div><div class="meta"><b>Guest</b><span>Fun facts · 2:00</span></div>`;
+  g.onclick = () => startSession({ id: "guest", name: "Guest", kind: "adult", brushSec: 120, flossSec: 60, content: "facts", faces: [] });
+  host.appendChild(g);
+  renderStatus();
+}
+function contentLabel(c) { return { briefing: "Daily briefing", story: "Story", facts: "Fun facts", language: "Phrase lesson", game: "Brushing game" }[c] || "Fun facts"; }
+function renderStatus() {
+  const st = S.settings, bits = [];
+  bits.push(`<span><i class="dot ${Cam.on ? "on" : ""}"></i>${Cam.on ? (Face.ready ? "Camera on · face recognition ready" : "Camera on · loading recognition…") : "Camera off"}</span>`);
+  bits.push(`<span><i class="dot ${st.apiKey ? "on" : ""}"></i>${st.apiKey ? "AI briefings on" : "Offline content"}</span>`);
+  if (st.voice) bits.push(`<span><i class="dot ${Voice.listening ? "on" : ""}"></i>Voice ${Voice.listening ? "listening" : "off"}</span>`);
+  $("#statusLine").innerHTML = bits.join("");
+}
+
+/* ---------------- camera ---------------- */
+const Cam = {
+  on: false, stream: null, video: null,
+  async start() {
+    if (this.on) return true;
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }, audio: false });
+      this.video = $("#cam"); this.video.srcObject = this.stream; await this.video.play();
+      this.on = true; $("#camPreview").hidden = !S.settings.preview; renderStatus(); return true;
+    } catch (e) {
+      this.on = false; renderStatus();
+      toast(location.protocol === "file:" || location.protocol === "https:" ? "Camera unavailable: allow camera access for this page in your browser, then turn the camera on again." : "The camera needs this page opened from a file or an https address.");
+      return false;
+    }
+  },
+  stop() { this.stream?.getTracks().forEach(t => t.stop()); this.on = false; this.stream = null; $("#camPreview").hidden = true; renderStatus(); }
+};
+
+/* ---------------- face recognition ---------------- */
+const Face = {
+  ready: false, loading: null, timer: null, streak: { id: null, n: 0 }, unknownN: 0, cooldown: {},
+  async load() {
+    if (this.ready) return; if (this.loading) return this.loading;
+    this.loading = (async () => {
+      if (!window.faceapi) await loadScript(FACE_API);
+      await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODELS);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODELS);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODELS);
+      this.ready = true; renderStatus();
+    })().catch(e => { this.loading = null; toast("Face recognition couldn't load. Check the internet connection."); throw e; });
+    return this.loading;
+  },
+  async describe(video) {
+    const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 })).withFaceLandmarks().withFaceDescriptor();
+    return det || null;
+  },
+  match(desc) {
+    let best = null, bestD = 1;
+    for (const p of S.profiles) for (const f of (p.faces || [])) {
+      let s = 0; for (let i = 0; i < 128; i++) { const d = desc[i] - f[i]; s += d * d; }
+      const d = Math.sqrt(s); if (d < bestD) { bestD = d; best = p; }
+    }
+    return bestD < 0.5 ? best : null;
+  },
+  watch() {
+    clearInterval(this.timer);
+    this.timer = setInterval(async () => {
+      if (!Cam.on || !this.ready || App.mode !== "idle" || this.busy) return;
+      this.busy = true;
+      try {
+        const det = await this.describe(Cam.video);
+        if (!det) { this.streak = { id: null, n: 0 }; this.unknownN = 0; Greet.awayTick(); return; }
+        const p = this.match(det.descriptor);
+        if (!p) { this.unknownN++; if (this.unknownN === 3) { $("#idlePrompt").innerHTML = `I don't recognize you yet.<small>Tap your name below. You can teach me your face in Settings.</small>`; } return; }
+        this.unknownN = 0;
+        if (this.streak.id === p.id) this.streak.n++; else this.streak = { id: p.id, n: 1 };
+        if (this.streak.n >= 2 && !Greet.active && !(this.cooldown[p.id] > Date.now())) Greet.show(p);
+      } catch (e) { /* skip frame */ } finally { this.busy = false; }
+    }, 700);
+  }
+};
+
+/* greeting with auto-start countdown */
+const Greet = {
+  active: false, timer: null, away: 0, person: null,
+  show(p) {
+    this.active = true; this.person = p; this.away = 0;
+    $("#idle .bottom").style.visibility = "hidden";
+    $("#greetTitle").textContent = `${greetWord()}, ${p.name}!`;
+    $("#greetSub").textContent = p.kind === "kid" ? "Ready to battle the germs?" : `Your ${contentLabel(p.content).toLowerCase()} is ready.`;
+    $("#greet").hidden = false;
+    if (S.settings.greet) TTS.say(p.kind === "kid" ? `Hi ${p.name}! Ready to beat the germs?` : `${greetWord()}, ${p.name}. ${weather.summary ? "It's " + weather.summary + ". " : ""}Ready when you are.`);
+    Content.prefetch(p);
+    let n = 3; clearInterval(this.timer);
+    const step = () => {
+      if (!S.settings.autoStart) { $("#greetCount").textContent = ""; return; }
+      $("#greetCount").textContent = `Starting in ${n}…`;
+      if (n-- <= 0) { clearInterval(this.timer); this.go(); }
+    };
+    step(); this.timer = setInterval(step, 1000);
+  },
+  awayTick() { if (this.active && ++this.away >= 5) this.hide(); },
+  go() { const p = this.person; this.hide(); startSession(p); },
+  hide(cool) { clearInterval(this.timer); this.active = false; $("#greet").hidden = true; $("#idle .bottom").style.visibility = ""; if (cool && this.person) Face.cooldown[this.person.id] = Date.now() + 30000; resetPrompt(); }
+};
+$("#greetGo").onclick = () => Greet.go();
+$("#greetCancel").onclick = () => Greet.hide(true);
+function resetPrompt() { $("#idlePrompt").innerHTML = `Who's brushing?<small>${Cam.on && Face.ready ? "Step up to the mirror, or tap your name." : "Tap your name to start."}</small>`; }
+
+/* ---------------- hand tracking (brush movement) ---------------- */
+const Hands = {
+  lm: null, loading: null, raf: 0, onStroke: null, lastSeen: 0,
+  async load() {
+    if (this.lm) return; if (this.loading) return this.loading;
+    this.loading = (async () => {
+      const v = await import(MP_BUNDLE);
+      const fs = await v.FilesetResolver.forVisionTasks(MP_WASM);
+      const make = d => v.HandLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: MP_HAND, delegate: d }, runningMode: "VIDEO", numHands: 1 });
+      try { this.lm = await make("GPU"); } catch { this.lm = await make("CPU"); }
+    })().catch(e => { this.loading = null; throw e; });
+    return this.loading;
+  },
+  start(onStroke) {
+    this.onStroke = onStroke; this.lastSeen = performance.now();
+    const st = { x: null, y: null, dirX: 0, dirY: 0, extX: 0, extY: 0, last: 0 };
+    const AMP = 0.018;
+    const loop = () => {
+      this.raf = requestAnimationFrame(loop);
+      if (!this.lm || !Cam.on || Cam.video.readyState < 2) return;
+      const now = performance.now();
+      let r; try { r = this.lm.detectForVideo(Cam.video, now); } catch { return; }
+      const h = r.landmarks?.[0]; if (!h) return;
+      this.lastSeen = now;
+      const x = (h[0].x + h[5].x + h[9].x) / 3, y = (h[0].y + h[5].y + h[9].y) / 3;
+      if (st.x == null) { st.x = st.extX = x; st.y = st.extY = y; return; }
+      const check = (v, axis) => {
+        const dirK = "dir" + axis, extK = "ext" + axis;
+        if (st[dirK] >= 0) { if (v > st[extK]) st[extK] = v; else if (st[extK] - v > AMP) { if (st[dirK] > 0) fire(); st[dirK] = -1; st[extK] = v; } }
+        if (st[dirK] <= 0) { if (v < st[extK]) st[extK] = v; else if (v - st[extK] > AMP) { if (st[dirK] < 0) fire(); st[dirK] = 1; st[extK] = v; } }
+      };
+      const fire = () => { if (now - st.last > 110) { st.last = now; this.onStroke && this.onStroke(); } };
+      check(x, "X"); check(y, "Y");
+    };
+    cancelAnimationFrame(this.raf); this.raf = requestAnimationFrame(loop);
+  },
+  stop() { cancelAnimationFrame(this.raf); this.onStroke = null; }
+};
+
+/* ---------------- offline content ---------------- */
+const FACTS = [
+  ["Your enamel", "Tooth enamel is the hardest substance in the human body, harder than bone. It has no living cells, so it can't repair itself once it's lost. That's exactly why the two minutes you're putting in right now matter."],
+  ["Brush history", "The first bristle toothbrush resembling today's was made in China in the late 1400s, using hog hairs set into a bone or bamboo handle. Nylon bristles arrived in 1938."],
+  ["Octopus brains", "An octopus has three hearts and about two-thirds of its neurons live in its arms, not its head. Each arm can taste what it touches."],
+  ["Honey keeps", "Archaeologists have found pots of honey in ancient Egyptian tombs that were thousands of years old and still edible. Its low moisture and acidity stop bacteria from growing."],
+  ["Bananas are berries", "Botanically, bananas and avocados count as berries, while strawberries and raspberries don't. A berry grows from a single flower with one ovary."],
+  ["Saliva", "You produce somewhere around half a liter to a liter and a half of saliva a day. It neutralizes acids and helps rebuild enamel between meals."],
+  ["Venus days", "A day on Venus is longer than its year. It takes about 243 Earth days to spin once, but only about 225 to orbit the Sun."],
+  ["Sharks and teeth", "Many sharks grow and shed thousands of teeth over a lifetime, replacing them in rows like a conveyor belt. Humans get just two sets."],
+  ["Eiffel growth", "The Eiffel Tower grows by up to about 15 centimeters in summer, because iron expands in the heat."],
+  ["Two minutes", "Dentists recommend two minutes because most people brush for well under one. Timed brushing removes noticeably more plaque than guessing."],
+  ["Wombat cubes", "Wombats produce cube-shaped droppings. The shape comes from varying elasticity in their intestine walls, and it stops the droppings rolling away from territory markers."],
+  ["Lightning", "A bolt of lightning can heat the air around it to roughly 30,000 kelvin, about five times hotter than the surface of the Sun."],
+  ["Floss facts", "A toothbrush can't reach about a third of each tooth's surface, the parts that face neighboring teeth. That's the job floss is made for."],
+  ["Oxford is old", "Teaching at the University of Oxford was underway by 1096, which makes it older than the Aztec capital Tenochtitlan, founded in 1325."],
+  ["Hummingbird hearts", "A hummingbird's heart can beat more than 1,200 times a minute in flight. At night some species drop into torpor, slowing it dramatically to save energy."],
+  ["Sound of the Sun", "Space is nearly silent because sound needs a medium to travel through. Without one, even the Sun's enormous churning makes no sound that reaches us."],
+  ["Coffee and teeth", "Coffee and tea stain teeth because of tannins, which help color compounds stick to enamel. Rinsing with water after a cup helps."],
+  ["Trees talk", "Trees in a forest are linked by fungal networks in the soil. Through them, trees can share water, sugars and chemical warning signals."],
+  ["Your tongue", "Bacteria on the tongue are a major cause of bad breath. A gentle brush or scrape of the tongue after your teeth makes a real difference."],
+  ["Bubble wrap", "Bubble wrap was invented in 1957 by two engineers who were trying to make textured wallpaper. It didn't sell as wallpaper, but it found a second life protecting computers."]
+];
+const STORIES = [
+  { title: "The Lighthouse Keeper's Cat", segs: [
+    "On a rock at the edge of the sea stood a lighthouse, and in it lived a keeper named Ada and a grey cat called Pepper. Every evening Ada climbed the spiral stairs to light the great lamp, and every evening Pepper climbed beside her, one step behind, tail high like a flag.",
+    "One stormy night the lamp sputtered and went dark. Ada searched the toolbox in a panic. The spare wick was gone. Out on the black water she could see the tiny lights of a fishing boat, heading straight for the rocks.",
+    "Pepper trotted to a corner, pawed at a loose floorboard, and sat down, looking very pleased. Under the board was a tin of wicks that Ada's grandfather had hidden forty years before, with a note that read: for the night you need it.",
+    "The lamp blazed back to life. The fishing boat turned, slow and wide, and slipped safely into the harbor. The next morning a basket of fresh sardines appeared on the doorstep. Pepper decided they were all for him, and nobody argued."
+  ]},
+  { title: "The Clockmaker's Apprentice", segs: [
+    "In a narrow street of an old city, a clockmaker named Mr. Brandt took on an apprentice called Leo. Leo was clumsy. He dropped springs, lost screws, and once glued a cuckoo in backwards so it popped out of the clock tail first.",
+    "Mr. Brandt never shouted. He just handed Leo another spring and said, slowly. Every clock in the world was built one small piece at a time. Leo practiced every evening, a few minutes at a time, until his hands stopped shaking.",
+    "One winter the great clock in the town square froze solid. The mayor called every expert in the region. None of them could fix it. Mr. Brandt was ill in bed, so he sent the only person he trusted. Leo.",
+    "Leo climbed the tower, worked through the night one small piece at a time, and at seven in the morning the bells rang out across the square. The whole town cheered. Up in the tower, Leo found the backwards cuckoo he'd made years before, still tucked in his pocket, and laughed."
+  ]},
+  { title: "The Gardener and the Seed", segs: [
+    "An old gardener named Rosa was given a seed by a traveler who said it would grow into the most beautiful plant in the valley, but only for someone patient. Rosa planted it in her best pot and waited.",
+    "A week passed. Nothing. A month. Still nothing. The neighbors laughed and said the traveler had tricked her. Rosa kept watering it every morning anyway, two minutes, never more and never less.",
+    "In spring a single green shoot appeared. By summer it had climbed the wall of her house. By autumn it covered the whole cottage in flowers the color of sunrise, and bees came from three villages away.",
+    "When the traveler came back the next year, Rosa asked why it had taken so long. He smiled and said the roots grow first, where nobody can see them. The best things usually do."
+  ]}
+];
+const PHRASES = { Spanish: [["Buenos días", "Good morning"], ["¿Qué tal tu día?", "How's your day going?"], ["Me lavo los dientes", "I'm brushing my teeth"], ["Hace buen tiempo hoy", "The weather is nice today"], ["¿Dónde está el café?", "Where's the coffee?"], ["Nos vemos luego", "See you later"]] };
+const TIPS = [
+  ["Brushing tip", "Hold the brush at about 45 degrees to the gumline and use small, gentle circles. Scrubbing hard doesn't clean better and can wear down gums."],
+  ["Brushing tip", "Spend about 30 seconds in each quarter of your mouth: top left, top right, bottom left, bottom right."],
+  ["Brushing tip", "Spit, don't rinse. Leaving a little toothpaste on your teeth lets the fluoride keep working."]
+];
+
+/* ---------------- content engine ---------------- */
+const Content = {
+  offline(p, totalSec, flossSec) {
+    let brush = [], floss = [];
+    if (p.content === "story") {
+      const s = STORIES[Math.floor(Math.random() * STORIES.length)];
+      brush = s.segs.map((t, i) => ({ kicker: i === 0 ? "Story time" : `Story · part ${i + 1}`, title: s.title, text: t }));
+      floss = [shuffle(FACTS)[0]].map(f => ({ kicker: "Bonus fact", title: f[0], text: f[1] }));
+    } else if (p.content === "language") {
+      const lang = p.language && PHRASES[p.language] ? p.language : "Spanish";
+      const ph = shuffle(PHRASES[lang]);
+      brush = [0, 2].map(i => ({ kicker: `${lang} · say it out loud after brushing`, title: ph[i][0], text: `${ph[i][1]}. Then: “${ph[i + 1][0]}”, which means ${ph[i + 1][1].toLowerCase()}.` }));
+      brush.push(...shuffle(FACTS).slice(0, 2).map(f => ({ kicker: "Fun fact", title: f[0], text: f[1] })));
+      floss = [{ kicker: `${lang} · bonus`, title: ph[4][0], text: ph[4][1] + "." }];
+      if (lang !== p.language && p.language) brush[0].kicker = `Spanish (offline lessons for ${p.language} need an API key)`;
+    } else {
+      const f = shuffle(FACTS);
+      brush = [TIPS[Math.floor(Math.random() * TIPS.length)], ...f.slice(0, 4)].map(([t, x], i) => ({ kicker: i === 0 ? "Before we start" : "Fun fact", title: t, text: x }));
+      floss = f.slice(4, 6).map(([t, x]) => ({ kicker: "Floss bonus", title: t, text: x }));
+      if (p.content === "briefing") brush[0] = { kicker: "Daily briefing", title: "Add an API key for live news", text: "Your briefing with live headlines, sports and markets needs a Claude API key, which you can add in Settings, AI & voice. Here are some fun facts instead." };
+    }
+    return { brush: timeSegs(brush, totalSec), floss: timeSegs(floss, flossSec), source: "offline" };
+  },
+  async ai(p, totalSec, flossSec) {
+    const words = s => Math.round(s * 2.3);
+    const interests = p.content === "briefing" ? `News topics: ${p.news || "top headlines"}. Sports: ${p.sports || "none"}. Stocks/markets: ${p.stocks || "none"}.${weather.summary ? " Local weather now: " + weather.summary + "." : ""}`
+      : p.content === "story" ? "An original short story, warm and clever, with a satisfying ending. Split it into parts."
+      : p.content === "language" ? `A mini ${p.language || "Spanish"} phrase lesson for a beginner-intermediate adult: useful everyday phrases with pronunciation hints and meaning.`
+      : "Surprising, accurate fun facts from science, history and nature.";
+    const prompt = `You write content for MirrorMate, a smart bathroom mirror. ${p.name} is brushing teeth for ${totalSec} seconds, then may floss for ${flossSec} more seconds. The text is shown on the mirror and may be read aloud, so write in a friendly spoken style.
+Today is ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}.
+Content type: ${contentLabel(p.content)}. ${interests}
+${p.content === "briefing" ? "Use web search to get today's real news, scores and market moves. Only state facts you found. If markets are closed, say how they last closed. " : ""}
+Size it to the time: about ${words(totalSec)} words total for the brushing part (segments of 25-60 words) and about ${words(flossSec)} words for the flossing part. The last brushing segment should end with one short line of encouragement to finish strong.
+Return ONLY a JSON object, no markdown, no citations, no commentary:
+{"brush":[{"kicker":"SHORT LABEL","title":"headline under 9 words","text":"spoken text","source":"publication name or empty"}],"floss":[{"kicker":"...","title":"...","text":"...","source":""}]}`;
+    const body = { model: S.settings.model, max_tokens: 2500, messages: [{ role: "user", content: prompt }] };
+    if (p.content === "briefing") body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }];
+    const j = await claudeCall(body);
+    const text = (j.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
+    const a = text.indexOf("{"), z = text.lastIndexOf("}");
+    const data = JSON.parse(text.slice(a, z + 1));
+    if (!data.brush?.length) throw new Error("Empty briefing");
+    return { brush: timeSegs(data.brush, totalSec), floss: timeSegs(data.floss || [], flossSec), source: "ai", at: Date.now() };
+  },
+  key(p) { return `${p.id}|${p.content}|${p.brushSec}|${p.flossSec}|${p.news}|${p.sports}|${p.stocks}|${p.language}`; },
+  fresh(p) { const c = S.cache[this.key(p)]; return c && Date.now() - c.at < (p.content === "briefing" ? 3 : 24) * 3600e3 && !c.used ? c : null; },
+  pending: {},
+  prefetch(p) {
+    if (!S.settings.apiKey || p.kind === "kid" || p.id === "guest" || this.fresh(p) || this.pending[p.id]) return this.pending[p.id];
+    this.pending[p.id] = this.ai(p, p.brushSec, p.flossSec).then(r => { S.cache[this.key(p)] = r; save(); return r; })
+      .catch(e => { console.warn("AI content failed", e); return null; }).finally(() => delete this.pending[p.id]);
+    return this.pending[p.id];
+  },
+  get(p) {
+    const c = this.fresh(p);
+    if (c) { c.used = true; save(); return { now: c }; }
+    return { now: this.offline(p, p.brushSec, p.flossSec), later: S.settings.apiKey && p.kind !== "kid" && p.id !== "guest" ? this.prefetch(p) : null };
+  }
+};
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function timeSegs(segs, total) {
+  if (!segs.length) return [];
+  const w = segs.map(s => Math.max(8, (s.text || "").split(/\s+/).length));
+  const sum = w.reduce((a, b) => a + b, 0);
+  return segs.map((s, i) => ({ ...s, seconds: total * w[i] / sum }));
+}
+async function claudeCall(body) {
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": S.settings.apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+    body: JSON.stringify(body)
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error?.message || ("HTTP " + r.status));
+  return j;
+}
+
+/* ---------------- session engine ---------------- */
+const App = { mode: "idle" };
+const Sess = {
+  p: null, phase: "brush", total: 0, elapsed: 0, paused: false, timer: 0, last: 0,
+  pack: null, segs: [], segIdx: -1, segStart: 0, brushed: 0, flossed: false, read: false, strokes: 0, game: null
+};
+
+async function startSession(p) {
+  if (App.mode !== "idle") return;
+  Greet.hide(); App.mode = "session";
+  Object.assign(Sess, { p, phase: "brush", total: p.brushSec, elapsed: 0, paused: false, brushed: 0, flossed: false, strokes: 0, segIdx: -1, read: S.settings.readAloud && p.kind !== "kid" });
+  const kid = p.kind === "kid";
+  $("#idle").hidden = true; $("#session").hidden = false;
+  $("#sName").textContent = p.name; $("#sAvatar").textContent = initials(p.name); $("#sAvatar").className = "avatar" + (kid ? " kid" : "");
+  $("#sPhase").className = "phase" + (kid ? " kid" : ""); $("#ring").className = "ring" + (kid ? " kid" : "");
+  $("#adultStage").hidden = kid; $("#kidStage").hidden = !kid;
+  $("#bNext").hidden = kid; $("#bRead").hidden = kid; updateReadBtn();
+  $("#sZone").textContent = ""; $("#sMeter").hidden = true;
+  setPhaseLabel();
+  requestWake();
+  if (kid) {
+    Game.start(p.brushSec, "brush");
+    TTS.say(`Let's go, ${p.name}! Start with your top left teeth.`);
+  } else {
+    const c = Content.get(p);
+    loadPack(c.now);
+    if (c.later) c.later.then(r => { if (r && App.mode === "session" && Sess.p === p && Sess.phase === "brush") { swapPack(r); } });
+  }
+  // movement tracking for everyone when camera is on
+  if (Cam.on) {
+    Hands.load().then(() => {
+      if (App.mode !== "session") return;
+      $("#sMeter").hidden = false;
+      Hands.start(onStroke);
+    }).catch(() => toast("Brush tracking couldn't load, so the game will run on time alone."));
+  }
+  Sess.last = performance.now(); cancelAnimationFrame(Sess.timer); Sess.timer = requestAnimationFrame(loop);
+}
+function setPhaseLabel() { $("#sPhase").textContent = Sess.phase === "brush" ? "Brushing" : "Flossing"; $("#sTimeLbl").textContent = Sess.phase === "brush" ? "left" : "floss"; }
+function onStroke() {
+  Sess.strokes++;
+  $("#sStrokes").textContent = Sess.strokes + " strokes";
+  const rate = Math.min(100, Sess.strokes / Math.max(1, (Sess.elapsed + Sess.brushed) / 60) / 1.6);
+  $("#sMeterBar").style.width = rate + "%";
+  if (Sess.p.kind === "kid") Game.stroke();
+}
+function loop(now) {
+  Sess.timer = requestAnimationFrame(loop);
+  const dt = (now - Sess.last) / 1000; Sess.last = now;
+  if (Sess.paused) return;
+  Sess.elapsed += dt;
+  const left = Sess.total - Sess.elapsed;
+  $("#sTime").textContent = fmt(left);
+  $("#arc").style.strokeDashoffset = 339.3 * (1 - Math.min(1, Sess.elapsed / Sess.total));
+  if (Sess.p.kind === "kid") Game.update(dt, Sess.elapsed, Sess.total);
+  else advanceContent();
+  if (left <= 0) phaseDone();
+}
+function loadPack(pack) {
+  Sess.pack = pack; Sess.segs = Sess.phase === "brush" ? pack.brush : pack.floss;
+  Sess.segIdx = -1; Sess.segStart = Sess.elapsed; renderSegBar(); advanceContent(true);
+}
+function swapPack(pack) {
+  // AI content arrived mid-session: re-time remaining brushing over remaining seconds
+  const remain = Sess.total - Sess.elapsed; if (remain < 25) { Sess.pack.floss = pack.floss; return; }
+  Sess.pack = { brush: timeSegs(pack.brush, remain), floss: pack.floss, source: "ai" };
+  Sess.segs = Sess.pack.brush; Sess.segIdx = -1; Sess.segStart = Sess.elapsed; renderSegBar(); advanceContent(true);
+  toast("Your live briefing is ready.");
+}
+function advanceContent(force) {
+  if (!Sess.segs.length) return;
+  let acc = Sess.segStart, idx = 0;
+  for (; idx < Sess.segs.length; idx++) { if (Sess.elapsed < acc + Sess.segs[idx].seconds) break; acc += Sess.segs[idx].seconds; }
+  idx = Math.min(idx, Sess.segs.length - 1);
+  if (idx !== Sess.segIdx || force) {
+    Sess.segIdx = idx; const s = Sess.segs[idx];
+    $("#cKicker").textContent = s.kicker || ""; $("#cTitle").textContent = s.title || ""; $("#cText").textContent = s.text || "";
+    $("#cSrc").textContent = s.source ? "Source: " + s.source : (Sess.pack.source === "ai" && Sess.p.content === "briefing" ? "" : "");
+    const c = $("#adultStage"); c.classList.remove("seg-fade"); void c.offsetWidth; c.classList.add("seg-fade");
+    if (Sess.read) TTS.say(`${s.title}. ${s.text}`);
+  }
+  const s = Sess.segs[idx]; const p = Math.min(1, (Sess.elapsed - acc) / s.seconds);
+  $$("#cSegs i").forEach((el, i) => { el.className = i < idx ? "done" : i === idx ? "now" : ""; if (i === idx) el.style.setProperty("--p", p); });
+}
+function renderSegBar() { $("#cSegs").innerHTML = Sess.segs.map(() => "<i></i>").join(""); }
+function nextSeg() {
+  if (!Sess.segs.length) return;
+  let acc = Sess.segStart; for (let i = 0; i <= Sess.segIdx; i++) acc += Sess.segs[i].seconds;
+  if (Sess.segIdx >= Sess.segs.length - 1) return;
+  // move the remaining timeline forward so the next segment starts now
+  Sess.segStart -= (acc - Sess.elapsed); advanceContent();
+}
+
+function phaseDone() {
+  if (Sess.phase === "brush") {
+    Sess.brushed = Sess.total; Sess.paused = true; TTS.stop(); Hands.stop();
+    const kid = Sess.p.kind === "kid";
+    if (kid) Game.finishBrush();
+    $("#offerTitle").textContent = kid ? `Amazing, ${Sess.p.name}!` : "Two minutes done!";
+    $("#offerText").textContent = kid ? `You scored ${Game.score} points. Want ${Math.round(Sess.p.flossSec / 60) === 1 ? "one more minute" : fmt(Sess.p.flossSec) + " more"} of flossing for bonus stars?` : `Want to floss? I'll keep you company for ${Sess.p.flossSec >= 60 && Sess.p.flossSec % 60 === 0 ? (Sess.p.flossSec / 60 === 1 ? "one more minute" : Sess.p.flossSec / 60 + " more minutes") : Sess.p.flossSec + " more seconds"}.`;
+    $("#offerYes").className = "btn " + (kid ? "kid" : "primary");
+    $("#offer").hidden = false; App.mode = "offer";
+    TTS.say(kid ? `Amazing! You scored ${Game.score} points. Want to floss for bonus stars?` : "Two minutes, nice work. Want to floss?");
+    let n = 15; clearInterval(phaseDone.t);
+    const step = () => { $("#offerCount").textContent = `Finishing in ${n}s`; if (n-- <= 0) { clearInterval(phaseDone.t); finish(); } };
+    step(); phaseDone.t = setInterval(step, 1000);
+  } else { finish(); }
+}
+function startFloss() {
+  clearInterval(phaseDone.t); $("#offer").hidden = true; App.mode = "session";
+  Sess.phase = "floss"; Sess.flossed = true; Sess.total = Sess.p.flossSec; Sess.elapsed = 0; Sess.paused = false; setPhaseLabel();
+  if (Sess.p.kind === "kid") { Game.start(Sess.p.flossSec, "floss"); TTS.say("Floss time! Clean between every tooth."); }
+  else { Sess.segs = Sess.pack.floss.length ? Sess.pack.floss : Content.offline(Sess.p, 1, Sess.p.flossSec).floss; Sess.segIdx = -1; Sess.segStart = 0; renderSegBar(); advanceContent(true); }
+  if (Cam.on && Hands.lm) Hands.start(onStroke);
+}
+function finish(early) {
+  clearInterval(phaseDone.t); cancelAnimationFrame(Sess.timer); Hands.stop(); TTS.stop();
+  $("#offer").hidden = true;
+  const brushedSec = Math.min(Sess.p.brushSec, Sess.phase === "brush" ? Sess.elapsed : Sess.brushed);
+  const completed = brushedSec >= Sess.p.brushSec - 1;
+  const kid = Sess.p.kind === "kid";
+  if (Sess.p.id !== "guest") {
+    S.sessions.push({ id: uid(), pid: Sess.p.id, at: new Date().toISOString(), planned: Sess.p.brushSec, brushed: Math.round(brushedSec), completed, flossed: Sess.flossed, score: kid ? Game.score : null, strokes: Sess.strokes });
+    if (S.sessions.length > 600) S.sessions = S.sessions.slice(-600);
+    save();
+  }
+  const streak = streakFor(Sess.p.id);
+  $("#sumTitle").textContent = completed ? (kid ? `Germ buster, ${Sess.p.name}!` : `Nice work, ${Sess.p.name}.`) : "Session ended early";
+  $("#sumText").textContent = completed ? (Sess.flossed ? "Brushed the full time and flossed. That's the whole routine." : "Full brushing time. Flossing tomorrow?") : `You brushed for ${fmt(brushedSec)}. Aim for ${fmt(Sess.p.brushSec)} next time.`;
+  const stats = [[fmt(brushedSec), "brushed"], [Sess.flossed ? "Yes" : "No", "flossed"]];
+  if (kid) stats.push([Game.score, "points"], ["★".repeat(Game.stars) || "–", "stars"]);
+  if (Sess.strokes) stats.push([Sess.strokes, "strokes seen"]);
+  if (Sess.p.id !== "guest") stats.push([streak + (streak === 1 ? " day" : " days"), "streak"]);
+  $("#sumStats").innerHTML = stats.map(([b, s]) => `<div class="stat"><b class="tnum">${esc(b)}</b><span>${esc(s)}</span></div>`).join("");
+  $("#summary").hidden = false; App.mode = "summary";
+  if (completed) TTS.say(kid ? `Germ buster! ${streak > 1 ? streak + " days in a row!" : ""}` : `All done. ${streak > 1 ? "That's " + streak + " days in a row." : "Have a great day."}`);
+  clearTimeout(finish.t); finish.t = setTimeout(endToIdle, 20000);
+}
+function endToIdle() {
+  clearTimeout(finish.t); $("#summary").hidden = true; $("#session").hidden = true; $("#idle").hidden = false;
+  if (Sess.p) Face.cooldown[Sess.p.id] = Date.now() + 90000;
+  App.mode = "idle"; resetPrompt(); renderPeople();
+}
+function streakFor(pid) {
+  const days = new Set(S.sessions.filter(s => s.pid === pid && s.completed).map(s => todayKey(new Date(s.at))));
+  let n = 0, d = new Date(); if (!days.has(todayKey(d))) d.setDate(d.getDate() - 1);
+  while (days.has(todayKey(d))) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+function updateReadBtn() { $("#bRead").textContent = "Read aloud: " + (Sess.read ? "on" : "off"); }
+$("#bPause").onclick = () => { Sess.paused = !Sess.paused; $("#bPause").textContent = Sess.paused ? "Resume" : "Pause"; if (Sess.paused) TTS.stop(); };
+$("#bNext").onclick = nextSeg;
+$("#bRead").onclick = () => { Sess.read = !Sess.read; updateReadBtn(); if (!Sess.read) TTS.stop(); else { const s = Sess.segs[Sess.segIdx]; s && TTS.say(`${s.title}. ${s.text}`); } };
+$("#bStop").onclick = () => finish(true);
+$("#offerYes").onclick = startFloss;
+$("#offerNo").onclick = () => finish();
+$("#sumDone").onclick = endToIdle;
+
+/* ---------------- kids game ---------------- */
+const ZONES = [
+  { name: "top left", q: 0 }, { name: "top right", q: 1 }, { name: "bottom left", q: 2 }, { name: "bottom right", q: 3 }
+];
+const Game = {
+  cv: null, ctx: null, germs: [], parts: [], score: 0, stars: 0, zone: -1, mode: "brush", total: 120, t: 0, auto: 0, lastHint: 0, cleared: [false, false, false, false],
+  start(total, mode) {
+    this.cv = $("#mouth"); this.ctx = this.cv.getContext("2d"); this.mode = mode; this.total = total; this.zone = -1; this.parts = []; this.auto = 0;
+    if (mode === "brush") { this.score = 0; this.stars = 0; this.cleared = [false, false, false, false]; }
+    this.germs = [];
+    for (let q = 0; q < 4; q++) for (let i = 0; i < (mode === "brush" ? 9 : 4); i++) this.germs.push(this.makeGerm(q, i));
+    this.resize(); this.hud();
+    this.cv.onpointerdown = e => { const r = this.cv.getBoundingClientRect(); this.tapAt((e.clientX - r.left) * devicePixelRatio, (e.clientY - r.top) * devicePixelRatio); };
+  },
+  makeGerm(q, i) { return { q, x: Math.random(), y: Math.random(), r: 0.8 + Math.random() * 0.5, ph: Math.random() * 6, alive: true, i }; },
+  resize() { const r = this.cv.getBoundingClientRect(); this.cv.width = Math.max(10, r.width * devicePixelRatio); this.cv.height = Math.max(10, r.height * devicePixelRatio); },
+  bubble(t) { $("#kBubble").textContent = t; },
+  hud() { $("#kScore").textContent = this.score + " pts"; $("#kStars").textContent = "★".repeat(this.stars) + "☆".repeat(Math.max(0, 5 - this.stars)); },
+  activeQ(el, total) { return this.mode === "floss" ? -1 : Math.min(3, Math.floor(el / (total / 4))); },
+  update(dt, el, total) {
+    const q = this.activeQ(el, total);
+    if (q !== this.zone) {
+      if (this.zone >= 0 && this.mode === "brush") this.zoneEnd(this.zone);
+      this.zone = q;
+      if (q >= 0) { const msg = `Now your ${ZONES[q].name} teeth!`; this.bubble(msg); $("#sZone").textContent = ZONES[q].name[0].toUpperCase() + ZONES[q].name.slice(1) + " teeth"; if (el > 1) TTS.say(msg); }
+      else { this.bubble("Slide the floss between every tooth to catch the hiding germs!"); $("#sZone").textContent = "Floss between teeth"; }
+    }
+    // without camera tracking, germs pop on a steady rhythm while the timer runs
+    const tracking = Cam.on && Hands.lm;
+    if (!tracking) {
+      const pool = this.germs.filter(g => g.alive && (this.mode === "floss" || g.q === q)).length;
+      const zoneLeft = this.mode === "floss" ? total - el : (q + 1) * total / 4 - el;
+      this.auto += dt;
+      const every = pool ? Math.max(0.6, zoneLeft / (pool + 0.5)) : 99;
+      if (this.auto >= every) { this.auto = 0; this.stroke(true); }
+    } else if (performance.now() - Hands.lastSeen > 4000 && performance.now() - this.lastHint > 6000) {
+      this.lastHint = performance.now(); this.bubble("I can't see your brushing hand. Keep it where the mirror can see it!");
+    }
+    this.draw(el);
+  },
+  stroke(auto) {
+    const pool = this.germs.filter(g => g.alive && (this.mode === "floss" || g.q === this.zone));
+    if (pool.length) {
+      const g = pool[Math.floor(Math.random() * pool.length)]; g.alive = false; this.score += 10; this.burst(g);
+      if (!auto && Math.random() < 0.18) this.bubble(["Great scrubbing!", "Keep it up!", "Pop! Got one!", "Those germs are running scared!"][Math.floor(Math.random() * 4)]);
+    } else if (!auto) { this.score += 2; }
+    this.hud();
+  },
+  tapAt(x, y) { if (!(Cam.on && Hands.lm)) { this.stroke(); } },
+  zoneEnd(q) {
+    const left = this.germs.filter(g => g.alive && g.q === q).length;
+    if (left === 0 && !this.cleared[q]) { this.cleared[q] = true; this.stars++; this.score += 50; this.hud(); }
+  },
+  finishBrush() { if (this.zone >= 0) this.zoneEnd(this.zone); this.score += 100; this.stars = Math.min(5, this.stars + 1); this.hud(); },
+  burst(g) { const p = this.pos(g); for (let i = 0; i < 14; i++) { const a = Math.random() * 6.28, v = 2 + Math.random() * 5; this.parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, c: Math.random() < .5 ? "#bff7ff" : "#ffffff" }); } },
+  layout() {
+    const W = this.cv.width, H = this.cv.height, m = Math.min(W, H);
+    const mw = Math.min(W * 0.92, m * 1.7), mh = Math.min(H * 0.9, mw * 0.62);
+    return { W, H, x: (W - mw) / 2, y: (H - mh) / 2, w: mw, h: mh };
+  },
+  pos(g) {
+    const L = this.layout(); const top = g.q < 2, left = g.q % 2 === 0;
+    const qx = L.x + L.w * (left ? 0.1 : 0.52), qw = L.w * 0.38;
+    const qy = top ? L.y + L.h * 0.14 : L.y + L.h * 0.62, qh = L.h * 0.24;
+    return { x: qx + g.x * qw, y: qy + g.y * qh };
+  },
+  draw(el) {
+    const c = this.ctx, L = this.layout(), dpr = devicePixelRatio;
+    c.clearRect(0, 0, L.W, L.H);
+    // lips & mouth
+    c.fillStyle = "#3a0f1c"; roundRect(c, L.x, L.y, L.w, L.h, L.h * 0.42); c.fill();
+    c.lineWidth = 10 * dpr; c.strokeStyle = "#e86a86"; c.stroke();
+    // tongue
+    c.fillStyle = "#c2475f"; c.beginPath(); c.ellipse(L.x + L.w / 2, L.y + L.h * 0.56, L.w * 0.26, L.h * 0.14, 0, 0, 6.28); c.fill();
+    // gums + teeth
+    const rows = [{ y: L.y + L.h * 0.08, h: L.h * 0.34, top: true }, { y: L.y + L.h * 0.58, h: L.h * 0.34, top: false }];
+    rows.forEach(r => {
+      c.fillStyle = "#f28aa0"; roundRect(c, L.x + L.w * 0.06, r.y, L.w * 0.88, r.h, r.h * 0.4); c.fill();
+      const n = 8, tw = (L.w * 0.84) / n;
+      for (let i = 0; i < n; i++) {
+        const q = (r.top ? 0 : 2) + (i < n / 2 ? 0 : 1);
+        const active = this.mode === "floss" || q === this.zone;
+        const clean = this.germs.filter(g => g.q === q && g.alive).length === 0;
+        c.fillStyle = clean ? "#ffffff" : active ? "#fffbe6" : "#e9e3cf";
+        const tx = L.x + L.w * 0.08 + i * tw + tw * 0.06, ty = r.top ? r.y + r.h * 0.18 : r.y + r.h * 0.06;
+        roundRect(c, tx, ty, tw * 0.88, r.h * 0.76, tw * 0.24); c.fill();
+        if (active && this.mode === "brush") { c.strokeStyle = "rgba(255,209,102,.9)"; c.lineWidth = 3 * dpr; c.stroke(); }
+        if (clean) { c.fillStyle = "rgba(255,255,255,.9)"; const sx = tx + tw * 0.62, sy = ty + r.h * 0.18, s = tw * 0.09; c.beginPath(); c.moveTo(sx, sy - s * 2); c.lineTo(sx + s * .5, sy - s * .5); c.lineTo(sx + s * 2, sy); c.lineTo(sx + s * .5, sy + s * .5); c.lineTo(sx, sy + s * 2); c.lineTo(sx - s * .5, sy + s * .5); c.lineTo(sx - s * 2, sy); c.lineTo(sx - s * .5, sy - s * .5); c.closePath(); c.fill(); }
+      }
+    });
+    // germs
+    const t = performance.now() / 1000;
+    this.germs.forEach(g => {
+      if (!g.alive) return; const p = this.pos(g); const active = this.mode === "floss" || g.q === this.zone;
+      const r = (active ? 15 : 11) * dpr * g.r + Math.sin(t * 4 + g.ph) * 1.5 * dpr;
+      c.globalAlpha = active ? 1 : 0.45;
+      c.fillStyle = "#8be36b"; c.beginPath();
+      for (let k = 0; k <= 10; k++) { const a = k / 10 * 6.28, rr = r * (1 + 0.16 * Math.sin(a * 5 + t * 5 + g.ph)); c[k ? "lineTo" : "moveTo"](p.x + Math.cos(a) * rr, p.y + Math.sin(a) * rr); }
+      c.fill();
+      c.fillStyle = "#fff"; c.beginPath(); c.arc(p.x - r * .35, p.y - r * .15, r * .28, 0, 6.28); c.arc(p.x + r * .35, p.y - r * .15, r * .28, 0, 6.28); c.fill();
+      c.fillStyle = "#122"; c.beginPath(); c.arc(p.x - r * .3, p.y - r * .1, r * .13, 0, 6.28); c.arc(p.x + r * .4, p.y - r * .1, r * .13, 0, 6.28); c.fill();
+      c.globalAlpha = 1;
+    });
+    // sparkles
+    this.parts = this.parts.filter(p => (p.life -= 0.03) > 0);
+    this.parts.forEach(p => { p.x += p.vx * dpr; p.y += p.vy * dpr; p.vy += 0.15; c.globalAlpha = p.life; c.fillStyle = p.c; c.beginPath(); c.arc(p.x, p.y, 3.2 * dpr, 0, 6.28); c.fill(); });
+    c.globalAlpha = 1;
+  }
+};
+function roundRect(c, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+window.addEventListener("resize", () => { if (App.mode !== "idle" && Sess.p?.kind === "kid") Game.resize(); });
+
+/* ---------------- voice commands ---------------- */
+const Voice = {
+  rec: null, listening: false,
+  start() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { toast("Voice commands need a browser with speech recognition, such as Chrome."); S.settings.voice = false; save(); syncSettings(); return; }
+    if (this.rec) return;
+    this.rec = new SR(); this.rec.continuous = true; this.rec.interimResults = false; this.rec.lang = "en-US";
+    this.rec.onresult = e => { const t = e.results[e.results.length - 1][0].transcript.toLowerCase(); this.handle(t); };
+    this.rec.onstart = () => { this.listening = true; renderStatus(); };
+    this.rec.onend = () => { this.listening = false; renderStatus(); if (S.settings.voice && this.rec) setTimeout(() => { try { this.rec.start(); } catch { } }, 400); };
+    this.rec.onerror = e => { if (e.error === "not-allowed") { toast("Microphone access was blocked, so voice commands are off."); S.settings.voice = false; save(); syncSettings(); this.stop(); } };
+    try { this.rec.start(); } catch { }
+  },
+  stop() { const r = this.rec; this.rec = null; try { r && r.stop(); } catch { } this.listening = false; renderStatus(); },
+  handle(t) {
+    const has = (...w) => w.some(x => t.includes(x));
+    if (App.mode === "offer") { if (has("yes", "floss", "sure", "okay", "ok")) startFloss(); else if (has("no", "done", "skip", "finish")) finish(); return; }
+    if (App.mode === "summary") { if (has("done", "thanks", "close", "bye")) endToIdle(); return; }
+    if (App.mode === "session") {
+      if (has("stop", "end session", "cancel")) finish(true);
+      else if (has("pause")) { Sess.paused = true; $("#bPause").textContent = "Resume"; TTS.stop(); }
+      else if (has("resume", "continue", "go on")) { Sess.paused = false; $("#bPause").textContent = "Pause"; }
+      else if (has("next", "skip")) nextSeg();
+      else if (has("read")) { Sess.read = true; updateReadBtn(); }
+      else if (has("quiet", "silence", "mute")) { Sess.read = false; updateReadBtn(); TTS.stop(); }
+      return;
+    }
+    if (App.mode === "idle") {
+      if (Greet.active && has("start", "go", "yes", "ready")) { Greet.go(); return; }
+      const p = S.profiles.find(p => t.includes(p.name.toLowerCase()));
+      if (p && has("start", "brush", "it's", "this is", "i'm", "im ")) startSession(p);
+      else if (has("start", "brush")) { const r = S.profiles.find(p => p.id === Face.streak.id); r ? startSession(r) : toast("Say your name, like: start for " + (S.profiles[0]?.name || "Lev")); }
+    }
+  }
+};
+
+/* ---------------- wake lock & fullscreen ---------------- */
+let wakeLock = null;
+async function requestWake() { if (!S.settings.wake || !("wakeLock" in navigator) || wakeLock) return; try { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => wakeLock = null); } catch { } }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") requestWake(); });
+$("#bFull").onclick = () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => { }); else document.documentElement.requestFullscreen?.().catch(() => toast("Full screen isn't available in this browser.")); };
+
+/* ---------------- settings ---------------- */
+function openSettings(tab = "household") { $("#settings").hidden = false; selectTab(tab); syncSettings(); renderPlist(); renderHistory(); }
+function selectTab(t) { $$(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t)); $$("[data-pane]").forEach(p => p.hidden = p.dataset.pane !== t); if (t === "history") renderHistory(); }
+$$(".tab").forEach(b => b.onclick = () => selectTab(b.dataset.tab));
+$("#bSettings").onclick = () => openSettings();
+$("#setClose").onclick = () => { $("#settings").hidden = true; $("#editorHost").innerHTML = ""; renderPeople(); resetPrompt(); };
+
+function syncSettings() {
+  const st = S.settings;
+  $("#optCamera").checked = st.camera; $("#optAuto").checked = st.autoStart; $("#optPreview").checked = st.preview; $("#optWake").checked = st.wake;
+  $("#optCity").value = st.city; $("#optUnits").value = st.units; $("#optKey").value = st.apiKey; $("#optModel").value = st.model;
+  $("#optRead").checked = st.readAloud; $("#optVoice").checked = st.voice; $("#optGreet").checked = st.greet;
+}
+$("#optCamera").onchange = async e => { S.settings.camera = e.target.checked; save(); if (S.settings.camera) await enableCamera(); else { Cam.stop(); clearInterval(Face.timer); } };
+$("#optAuto").onchange = e => { S.settings.autoStart = e.target.checked; save(); };
+$("#optPreview").onchange = e => { S.settings.preview = e.target.checked; save(); $("#camPreview").hidden = !(Cam.on && e.target.checked); };
+$("#optWake").onchange = e => { S.settings.wake = e.target.checked; save(); if (e.target.checked) requestWake(); else { wakeLock?.release(); } };
+$("#optCity").onchange = e => { S.settings.city = e.target.value.trim(); S.settings.lat = S.settings.lon = null; save(); weather(); };
+$("#optUnits").onchange = e => { S.settings.units = e.target.value; save(); weather(); };
+$("#optKey").onchange = e => { S.settings.apiKey = e.target.value.trim(); S.cache = {}; save(); renderStatus(); };
+$("#optModel").onchange = e => { S.settings.model = e.target.value; save(); };
+$("#optRead").onchange = e => { S.settings.readAloud = e.target.checked; save(); };
+$("#optVoice").onchange = e => { S.settings.voice = e.target.checked; save(); S.settings.voice ? Voice.start() : Voice.stop(); };
+$("#optGreet").onchange = e => { S.settings.greet = e.target.checked; save(); };
+$("#testKey").onclick = async () => {
+  S.settings.apiKey = $("#optKey").value.trim(); save();
+  if (!S.settings.apiKey) { $("#keyStatus").textContent = "Paste a key first."; return; }
+  $("#keyStatus").textContent = "Checking…";
+  try { await claudeCall({ model: S.settings.model, max_tokens: 16, messages: [{ role: "user", content: "Reply with the word ready." }] }); $("#keyStatus").textContent = "Key works."; renderStatus(); }
+  catch (e) { $("#keyStatus").textContent = "That didn't work: " + e.message; }
+};
+async function enableCamera() {
+  if (!(await Cam.start())) { S.settings.camera = false; save(); syncSettings(); return; }
+  try { await Face.load(); Face.watch(); resetPrompt(); } catch { }
+}
+
+function renderPlist() {
+  $("#plist").innerHTML = S.profiles.map(p => `<div class="pitem"><div class="avatar ${p.kind === "kid" ? "kid" : ""}">${esc(initials(p.name))}</div>
+    <div class="meta"><b>${esc(p.name)}</b><span>${p.kind === "kid" ? "Kid · brushing game" : "Adult · " + contentLabel(p.content)} · ${fmt(p.brushSec)} brush · ${fmt(p.flossSec)} floss</span></div>
+    <span class="chip ${p.faces?.length ? "ok" : ""}">${p.faces?.length ? "Face learned" : "No face yet"}</span>
+    <button class="btn" data-edit="${p.id}" style="padding:8px 14px;font-size:14px">Edit</button></div>`).join("") || `<p class="note">No one yet. Add each person who uses this mirror.</p>`;
+  $$("[data-edit]").forEach(b => b.onclick = () => editPerson(S.profiles.find(p => p.id === b.dataset.edit)));
+}
+$("#addPerson").onclick = () => editPerson(null);
+function editPerson(p) {
+  const isNew = !p; const d = p ? { ...p } : { id: uid(), name: "", kind: "adult", brushSec: 120, flossSec: 60, content: "facts", news: "", sports: "", stocks: "", language: "Spanish", faces: [] };
+  const host = $("#editorHost");
+  host.innerHTML = `<div class="editor"><h3>${isNew ? "Add a person" : "Edit " + esc(d.name)}</h3>
+    <div class="grid2">
+      <div class="field"><label for="eName">Name</label><input type="text" id="eName" value="${esc(d.name)}" placeholder="Name"></div>
+      <div class="field"><label>Who is this?</label><div class="seg" id="eKind"><button type="button" data-v="adult" aria-pressed="${d.kind === "adult"}">Adult</button><button type="button" data-v="kid" aria-pressed="${d.kind === "kid"}">Kid</button></div></div>
+      <div class="field"><label for="eBrush">Brushing time (seconds)</label><input type="number" id="eBrush" min="30" max="600" step="10" value="${d.brushSec}"></div>
+      <div class="field"><label for="eFloss">Flossing time (seconds)</label><input type="number" id="eFloss" min="20" max="300" step="10" value="${d.flossSec}"></div>
+    </div>
+    <div id="adultFields" ${d.kind === "kid" ? "hidden" : ""}>
+      <div class="field"><label for="eContent">What to show while brushing</label><select id="eContent">
+        <option value="briefing">Daily briefing: news, sports, markets</option><option value="story">A short story</option><option value="facts">Fun facts</option><option value="language">Language phrase lesson</option></select></div>
+      <div class="grid2" id="briefFields">
+        <div class="field"><label for="eNews">News topics</label><input type="text" id="eNews" value="${esc(d.news)}" placeholder="Tech, business, Long Island"></div>
+        <div class="field"><label for="eSports">Sports teams</label><input type="text" id="eSports" value="${esc(d.sports)}" placeholder="Knicks, Yankees"></div>
+        <div class="field"><label for="eStocks">Stocks &amp; markets</label><input type="text" id="eStocks" value="${esc(d.stocks)}" placeholder="AAPL, NVDA, S&amp;P 500"></div>
+      </div>
+      <div class="field" id="langField"><label for="eLang">Language to learn</label><input type="text" id="eLang" value="${esc(d.language)}" placeholder="Spanish"></div>
+    </div>
+    <div class="field"><label>Face recognition</label><div class="row" style="justify-content:flex-start;align-items:center">
+      <button type="button" class="btn" id="eFace">${d.faces?.length ? "Re-learn face" : "Teach face"}</button>
+      <span class="hint" id="eFaceStatus">${d.faces?.length ? d.faces.length + " samples saved" : "Not set up. This person can still tap their name."}</span>
+      ${d.faces?.length ? `<button type="button" class="btn" id="eFaceDel" style="padding:8px 14px;font-size:14px">Forget face</button>` : ""}</div></div>
+    <div class="row" style="justify-content:flex-start;margin-top:8px">
+      <button type="button" class="btn primary" id="eSave">Save</button>
+      <button type="button" class="btn" id="eCancel">Cancel</button>
+      ${isNew ? "" : `<button type="button" class="btn" id="eDel" style="margin-left:auto;color:var(--warn)">Remove person</button>`}
+    </div><div class="hint" id="eConfirm" style="margin-top:10px"></div></div>`;
+  $("#eContent") && ($("#eContent").value = d.content === "game" ? "facts" : d.content);
+  const syncFields = () => { const c = $("#eContent").value; $("#briefFields").hidden = c !== "briefing"; $("#langField").hidden = c !== "language"; };
+  syncFields(); $("#eContent").onchange = syncFields;
+  $$("#eKind button").forEach(b => b.onclick = () => { d.kind = b.dataset.v; $$("#eKind button").forEach(x => x.setAttribute("aria-pressed", x === b)); $("#adultFields").hidden = d.kind === "kid"; });
+  const collect = () => {
+    d.name = $("#eName").value.trim() || "Someone"; d.brushSec = clamp(+$("#eBrush").value || 120, 30, 600); d.flossSec = clamp(+$("#eFloss").value || 60, 20, 300);
+    d.content = d.kind === "kid" ? "game" : $("#eContent").value; d.news = $("#eNews").value.trim(); d.sports = $("#eSports").value.trim(); d.stocks = $("#eStocks").value.trim(); d.language = $("#eLang").value.trim() || "Spanish";
+  };
+  $("#eFace").onclick = () => { collect(); Enroll.open(d, faces => { d.faces = faces; $("#eFaceStatus").textContent = faces.length + " samples saved. Press Save to keep them."; }); };
+  $("#eFaceDel") && ($("#eFaceDel").onclick = () => { d.faces = []; $("#eFaceStatus").textContent = "Face forgotten. Press Save to confirm."; });
+  $("#eSave").onclick = () => { collect(); const i = S.profiles.findIndex(x => x.id === d.id); if (i >= 0) S.profiles[i] = d; else S.profiles.push(d); save(); host.innerHTML = ""; renderPlist(); renderPeople(); toast(d.name + " saved."); };
+  $("#eCancel").onclick = () => host.innerHTML = "";
+  $("#eDel") && ($("#eDel").onclick = () => {
+    if ($("#eDel").dataset.armed) { S.profiles = S.profiles.filter(x => x.id !== d.id); save(); host.innerHTML = ""; renderPlist(); renderPeople(); toast(d.name + " removed."); }
+    else { $("#eDel").dataset.armed = 1; $("#eDel").textContent = "Tap again to remove"; $("#eConfirm").textContent = "This also removes their face samples. History stays."; }
+  });
+  host.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+/* face enrollment */
+const Enroll = {
+  cb: null, stream: null,
+  async open(d, cb) {
+    this.cb = cb; $("#enroll").hidden = false; $("#enTitle").textContent = `Teach me ${d.name}'s face`; $("#enStatus").textContent = "Starting camera…"; $("#enGo").disabled = true;
+    const ok = Cam.on || await Cam.start();
+    if (!ok) { $("#enStatus").textContent = "The camera isn't available. Allow camera access and try again."; return; }
+    $("#enVideo").srcObject = Cam.stream; $("#enVideo").play().catch(() => { });
+    try { $("#enStatus").textContent = "Loading face recognition…"; await Face.load(); $("#enStatus").textContent = "Center your face in the oval, then press Capture."; $("#enGo").disabled = false; }
+    catch { $("#enStatus").textContent = "Face recognition couldn't load. Check the internet connection."; }
+  },
+  async capture() {
+    $("#enGo").disabled = true; const out = [];
+    for (let i = 0; i < 5 && !$("#enroll").hidden; i++) {
+      $("#enStatus").textContent = `Sample ${i + 1} of 5${i ? ", turn your head a little" : ""}…`;
+      await new Promise(r => setTimeout(r, 700));
+      let det = null; for (let tries = 0; tries < 6 && !det; tries++) det = await Face.describe($("#enVideo"));
+      if (det) out.push(Array.from(det.descriptor, v => Math.round(v * 1e4) / 1e4));
+    }
+    if (out.length < 3) { $("#enStatus").textContent = "I couldn't see a face clearly. Try brighter light and look straight at the camera."; $("#enGo").disabled = false; return; }
+    $("#enStatus").textContent = `Got ${out.length} samples.`;
+    this.cb && this.cb(out); setTimeout(() => this.close(), 600);
+  },
+  close() { $("#enroll").hidden = true; $("#enVideo").srcObject = null; if (!S.settings.camera) Cam.stop(); }
+};
+$("#enGo").onclick = () => Enroll.capture();
+$("#enCancel").onclick = () => Enroll.close();
+
+/* history */
+function renderHistory() {
+  const days = []; for (let i = 13; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push(d); }
+  $("#hist").innerHTML = S.profiles.map(p => {
+    const mine = S.sessions.filter(s => s.pid === p.id);
+    const cells = days.map(d => { const k = todayKey(d); const day = mine.filter(s => todayKey(new Date(s.at)) === k); const full = day.some(s => s.completed); return `<i class="${full ? "am" : day.length ? "half" : ""}" title="${d.toLocaleDateString()}">${d.getDate()}</i>`; }).join("");
+    const total = mine.length, floss = mine.filter(s => s.flossed).length;
+    return `<div class="hrow"><div class="name">${esc(p.name)}</div><div class="days">${cells}</div><span class="hint">${streakFor(p.id)}-day streak · ${total} sessions · flossed ${floss}</span></div>`;
+  }).join("") || `<p class="note">No sessions yet.</p>`;
+}
+$("#clearHist").onclick = e => { if (e.target.dataset.armed) { S.sessions = []; save(); renderHistory(); e.target.textContent = "Clear history"; delete e.target.dataset.armed; toast("History cleared."); } else { e.target.dataset.armed = 1; e.target.textContent = "Tap again to clear all history"; } };
+
+/* ---------------- boot ---------------- */
+renderPeople(); resetPrompt();
+if (S.settings.camera) enableCamera();
+if (S.settings.voice) Voice.start();
+requestWake();
+S.profiles.forEach(p => Content.prefetch(p));
+setInterval(() => { if (App.mode === "idle") S.profiles.forEach(p => Content.prefetch(p)); }, 60 * 60 * 1000);
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input,textarea,select")) return;
+  if (e.key === "Escape") { if (!$("#settings").hidden) $("#setClose").click(); else if (App.mode === "session") finish(true); else if (App.mode === "summary") endToIdle(); }
+  if (e.key === " " && App.mode === "session") { e.preventDefault(); $("#bPause").click(); }
+  if (e.key === "ArrowRight" && App.mode === "session") nextSeg();
+});
+</script>
+</body>
+</html>
